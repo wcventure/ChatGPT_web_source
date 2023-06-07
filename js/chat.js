@@ -181,6 +181,23 @@ $(document).ready(function () {
             time: false //取消自动关闭
         });
 
+        function draw() {
+            $.get("getpicture.php", function (data) {
+                layer.close(loading);
+                layer.msg("处理成功！");
+                answer = randomString(16);
+                $("#article-wrapper").append('<li class="article-title" id="q' + answer + '"><pre></pre></li>');
+                for (var j = 0; j < prompt.length; j++) {
+                    $("#q" + answer).children('pre').text($("#q" + answer).children('pre').text() + prompt[j]);
+                }
+                $("#article-wrapper").append('<li class="article-content" id="' + answer + '"><img onload="document.getElementById(\'article-wrapper\').scrollTop=100000;" src="pictureproxy.php?url=' + encodeURIComponent(data.data[0].url) + '"></li>');
+                $("#kw-target").val("");
+                $("#kw-target").attr("disabled", false);
+                autoresize();
+                $("#ai-btn").html('<i class="iconfont icon-wuguan"></i>发送');
+                if (!isMobile()) $("#kw-target").focus();
+            }, "json");
+        }
         function streaming() {
             var es = new EventSource("stream.php");
             var isstarted = true;
@@ -245,13 +262,17 @@ $(document).ready(function () {
                         let newalltext = alltext;
                         let islastletter = false;
                         //有时服务器错误地返回\\n作为换行符，尤其是包含上下文的提问时，这行代码可以处理一下。
-                        if (newalltext.split("\n\n").length == newalltext.split("\n").length) {
+                        if (newalltext.split("\n").length == 1) {
                             newalltext = newalltext.replace(/\\n/g, '\n');
                         }
-                        if (str_.length < newalltext.length) {
+                        if (str_.length < (newalltext.length - 3)) {
                             str_ += newalltext[i++];
-                            strforcode = str_ + "_";
-                            if ((str_.split("```").length % 2) == 0) strforcode += "\n```\n";
+                            strforcode = str_;
+                            if ((str_.split("```").length % 2) == 0) {
+                                strforcode += "\n```\n";
+                            } else {
+                                strforcode += "_";
+                            }
                         } else {
                             if (isalltext) {
                                 clearInterval(timer);
@@ -307,20 +328,37 @@ $(document).ready(function () {
         }
 
 
-        $.ajax({
-            cache: true,
-            type: "POST",
-            url: "setsession.php",
-            data: {
-                message: prompt,
-                context: (!($("#keep").length) || ($("#keep").prop("checked"))) ? JSON.stringify(contextarray) : '[]',
-                key: ($("#key").length) ? ($("#key").val()) : '',
-            },
-            dataType: "json",
-            success: function (results) {
-                streaming();
-            }
-        });
+        if (prompt.charAt(0) === '画') {
+            $.ajax({
+                cache: true,
+                type: "POST",
+                url: "setsession.php",
+                data: {
+                    message: prompt,
+                    context: '[]',
+                    key: ($("#key").length) ? ($("#key").val()) : '',
+                },
+                dataType: "json",
+                success: function (results) {
+                    draw();
+                }
+            });
+        } else {
+            $.ajax({
+                cache: true,
+                type: "POST",
+                url: "setsession.php",
+                data: {
+                    message: prompt,
+                    context: (!($("#keep").length) || ($("#keep").prop("checked"))) ? JSON.stringify(contextarray) : '[]',
+                    key: ($("#key").length) ? ($("#key").val()) : '',
+                },
+                dataType: "json",
+                success: function (results) {
+                    streaming();
+                }
+            });
+        }
 
 
     }
